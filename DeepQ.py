@@ -29,6 +29,8 @@ class DeepQAgent:
             return np.argmax(a[0])
 
     def replay(self, batch_size):
+        if len(self.buffer) < batch_size:
+            return
         batch = random.sample(self.buffer, batch_size)
 
         for s, a, r, s_next, done in batch:
@@ -52,9 +54,34 @@ class DeepQAgent:
 
 
 env = gym.make('CartPole-v1', render_mode="human")
+agentQ = DeepQAgent()
+
+
 
 #print(env.observation_space.shape[0])
-print(env.action_space.n)
+print(env.action_space)
+print(env.observation_space.shape[0])#[0]
+
+episodes = 20
+
+for e in range(episodes):
+    s = env.reset()
+
+    a = agentQ.select_action(s)
+
+    s_next, r, done, truncated, info = env.step(a)
+    agentQ.append_buffer(s, a, s_next, r, done)
+    s = s_next
+    agentQ.replay(10)
+    if done:
+        print('done')
+
+
+
+
+
+
+
 # env.action_space.seed(42)
 #
 # observation, info = env.reset(seed=42)
