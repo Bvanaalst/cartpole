@@ -1,0 +1,36 @@
+Learning Rate Tuning:
+
+Learning Rate 0.0001 shows a relatively consistent increase in rewards over episodes, but the final reward values are lower compared to other learning rates.
+Learning Rate 0.001 starts with high rewards but fluctuates significantly, indicating potential instability.
+Learning Rate 0.01 shows a steady increase in rewards over episodes and achieves relatively high rewards. [FINAL]
+Learning Rate 0.1 starts with decent rewards but fluctuates and then stabilizes with lower rewards.
+
+
+Exploration Factor Tuning:
+
+Average rewards per exploration factor:
+Exploration factor: 0.1, Average reward: 11.85
+Exploration factor: 0.2, Average reward: 14.5
+Exploration factor: 0.5, Average reward: 14.55
+Exploration factor: 0.9, Average reward: 11.7
+
+Best exploration factor: 0.5 [FINAL]
+
+
+Network Architecture Tuning:
+
+For the architecture [32, 16]:
+Average reward = 14.75
+
+For the architecture [64, 32]: [FINAL]
+Average reward = 18.05 
+
+For the architecture [128, 64]: [Not considered as avg reward is only slighlty higher due to one episode with peak reward]
+Average reward = 18.45
+
+
+Ablation Study: 
+
+# Scenario 1: DQN without Target Network
+# Scenario 2: DQN without Experience Replay
+# Scenario 3: DQN without both Target Network and Experience Replay 
