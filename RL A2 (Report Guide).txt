@@ -31,6 +31,6 @@ Average reward = 18.45
 
 Ablation Study: 
 
-# Scenario 1: DQN without Target Network
-# Scenario 2: DQN without Experience Replay
-# Scenario 3: DQN without both Target Network and Experience Replay 
+# Scenario 1: DQN vs DQN without Target Network
+# Scenario 2: DQN vs DQN without Experience Replay
+# Scenario 3: DQN vs DQN without Target Network and Experience Replay 
