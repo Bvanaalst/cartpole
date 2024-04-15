@@ -62,7 +62,7 @@ class Agent(object):
         self.gradient_memory.append(np.array(encoded_action).astype('float32') - probabilities)
         self.probabilities.append(probabilities)
         self.state_memory.append(observation)
-        self.action_memory.append(action)
+        self.action_memory.append(encoded_action)
         self.reward_memory.append(reward)
 
     def update_policy(self):
@@ -83,18 +83,25 @@ class Agent(object):
                 discount *= self.gamma
             G[t] = G_sum
         mean = np.mean(G)
-        std = np.std(G) if np.std(G) > 0 else 1
+        std = np.std(G) + 1e-9
         self.G = (G - mean) / std
 
         gradients = np.vstack(self.gradient_memory)
         rewards = np.vstack(self.G)
-        print('gradients: ', gradients)
-        print('rewards: ', rewards)
+        #print('gradients: ', gradients)
+        #print('rewards: ', rewards)
         gradients *= rewards
-        X = np.squeeze(np.vstack([self.state_memory]))
+        #print('gradients: ', gradients)
+        states = np.squeeze(np.vstack([self.state_memory]))
+        actions = np.squeeze(np.vstack(self.action_memory))
         Y = self.probabilities + self.lr * np.squeeze(np.vstack([gradients]))
-        self.model.train_on_batch(X, Y)
-
+        #print('Y: ', Y)
+        #print(np.squeeze(np.vstack(self.G)))
+        self.model.train_on_batch(states, actions, sample_weight=self.G)
+        #print('states: ', states)
+        #print('actions: ', actions)
+        #print('G: ', self.G)
+        #print('rewards', reward_memory)
         self.state_memory = []
         self.action_memory = []
         self.reward_memory = []
@@ -108,7 +115,7 @@ def test():
     state_size = env.observation_space.shape[0]
     action_size = env.action_space.n
     agent = Agent(state_size, action_size)
-    n_episodes = 1000
+    n_episodes = 2000
     score_history = []
     for i in range(n_episodes):
         done = False
