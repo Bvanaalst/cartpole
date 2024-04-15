@@ -19,6 +19,7 @@ class Agent(object):
         self.action_memory = []
         self.reward_memory = []
         self.gradient_memory = []
+        self.probabilities = []
         self.model = self.build_policy_network()
         self.action_space = [i for i in range(n_actions)]
 
@@ -46,25 +47,26 @@ class Agent(object):
     def choose_action(self, observation):
         state = observation[np.newaxis, :]
         probabilities = self.model.predict(state, verbose=0)[0]
-        print('probabilities', probabilities)
+        #print('probabilities', probabilities)
         action = np.random.choice(self.action_space, p=probabilities)
 
         return action, probabilities
 
-    def store_transition(self, observation, action, reward, propabilities):
+    def store_transition(self, observation, action, reward, probabilities):
         encoded_action = np.zeros(self.n_actions)                                            # one-hot encoding
         #print(self.action_space)
         #print('encoded_action', encoded_action)
         #print('action', action)
         encoded_action[action] = 1
 
-        self.gradient_memory.append(np.array(encoded_action).astype('float32') - propabilities)
+        self.gradient_memory.append(np.array(encoded_action).astype('float32') - probabilities)
+        self.probabilities.append(probabilities)
         self.state_memory.append(observation)
         self.action_memory.append(action)
         self.reward_memory.append(reward)
 
     def update_policy(self):
-        state_memory = np.array(self.state_memory)
+        #state_memory = np.array(self.state_memory)
         #action_memory = np.array(self.action_memory)
         reward_memory = np.array(self.reward_memory)
 
@@ -84,18 +86,21 @@ class Agent(object):
         std = np.std(G) if np.std(G) > 0 else 1
         self.G = (G - mean) / std
 
-        gradients =
-        print(self.G)
-
-        self
-
-        cost = self.policy.train_on_batch([state_memory, self.G], actions_encoded)
+        gradients = np.vstack(self.gradient_memory)
+        rewards = np.vstack(self.G)
+        print('gradients: ', gradients)
+        print('rewards: ', rewards)
+        gradients *= rewards
+        X = np.squeeze(np.vstack([self.state_memory]))
+        Y = self.probabilities + self.lr * np.squeeze(np.vstack([gradients]))
+        self.model.train_on_batch(X, Y)
 
         self.state_memory = []
         self.action_memory = []
         self.reward_memory = []
+        self.gradient_memory = []
+        self.probabilities = []
 
-        return cost
 
 def test():
     #print('going to test')
