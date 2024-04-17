@@ -67,13 +67,13 @@ class Agent(object):
 
         states = np.squeeze(np.vstack([self.state_memory]))
         actions = np.squeeze(np.vstack(self.action_memory))
+        self.critic_model.train_on_batch(states, self.G)
         values = self.critic_model.predict(states)[:, 0]
         advantages = self.G - values
-        #print('G: ', self.G)
-        #print('values: ', values)
-        #print('advantages: ', advantages)
+        # print('G: ', self.G)
+        # print('values: ', values)
+        # print('advantages: ', advantages)
         self.actor_model.train_on_batch(states, actions, sample_weight=advantages)
-        self.critic_model.train_on_batch(states, self.G)
         self.state_memory = []
         self.action_memory = []
         self.reward_memory = []
