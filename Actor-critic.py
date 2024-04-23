@@ -55,7 +55,12 @@ class Agent(object):
 
     def update_policy(self):
         reward_memory = np.array(self.reward_memory)
-
+        states = np.squeeze(np.vstack([self.state_memory]))
+        actions = np.squeeze(np.vstack(self.action_memory))
+        #values = self.model_critic(states)[:, 0]
+        values_2 = np.squeeze(self.model_critic.predict(states))
+        print(values_2)
+        n = 5
         G = np.zeros_like(reward_memory)
         for t in range(len(reward_memory)):
             G_sum = 0
@@ -64,15 +69,12 @@ class Agent(object):
                 G_sum += reward_memory[k] * discount
                 discount *= self.gamma
             G[t] = G_sum
+            n = min(n, len(reward_memory) - t)
+            G[t] += (self.gamma ** n) * values_2[t + n]
         mean = np.mean(G)
         std = np.std(G) + 1e-9
         self.G = (G - mean) / std
 
-        states = np.squeeze(np.vstack([self.state_memory]))
-        actions = np.squeeze(np.vstack(self.action_memory))
-
-        values = self.model_critic(states)[:, 0]
-        #print(values)
 
         advantages = self.G - values
         #print("states: ", states)
