@@ -99,7 +99,7 @@ def test():
         score = 0
         s = env.reset()
         s = s[0]
-        while not done:
+        while not done or score >= 500:
             a, prob = agent.choose_action(s)
             step_result = env.step(a)  # Execute action_t in emulator and observe next_state, reward and terminal state
             s_next, r, done, _ = step_result[:4]
