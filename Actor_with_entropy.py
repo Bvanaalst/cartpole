@@ -4,7 +4,6 @@ from tensorflow.keras.layers import Dense
 from tensorflow.keras.optimizers import Adam
 from keras import backend as K
 import gymnasium as gym
-from matplotlib import pyplot as plt
 
 
 class CustomEntropyRegularization:
@@ -86,14 +85,16 @@ class Agent(object):
         self.reward_memory = []
 
 
-def test():
+def reinforce(n_episodes, learning_rate, gamma):
     env = gym.make('CartPole-v1')
     state_size = env.observation_space.shape[0]
     action_size = env.action_space.n
-    agent = Agent(n_actions=action_size, state_size=state_size)
-    n_episodes = 500
+    agent = Agent(alpha=learning_rate, gamma=gamma, n_actions=action_size, state_size=state_size)
     score_history = []
     average_score = []
+    eval_timesteps = []
+    eval_returns = []
+    eval_avg_returns = []
     for i in range(n_episodes):
         done = False
         score = 0
@@ -106,15 +107,10 @@ def test():
             agent.store_transition(s, a, r, prob)
             s = s_next
             score += r
-        score_history.append(score)
         agent.update_policy()
-        print('episode ', i, ' score ', score, 'average_score ', np.mean(score_history[-100:]))
-        average_score.append(np.mean(score_history[-100:]))
-    plt.scatter(score_history, color='blue')
-    plt.plot(average_score, color='red')
-    plt.title("Reward progression ")
-    plt.xlabel("Episode")
-    plt.ylabel("Reward")
-    plt.show()
-test()
+        eval_timesteps.append(i)
+        eval_returns.append(score)
+        eval_avg_returns.append(np.mean(eval_returns[-100:]))
+        print('episode ', i, ' score ', score, 'average_score ', np.mean(eval_returns[-100:]))
+    return np.array(eval_returns), np.array(eval_timesteps), np.array(eval_avg_returns)
 

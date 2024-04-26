@@ -5,7 +5,6 @@ from tensorflow.keras.optimizers import Adam
 from keras import backend as K
 
 import gymnasium as gym
-from matplotlib import pyplot as plt
 
 
 class CustomEntropyRegularization:
@@ -18,10 +17,11 @@ class CustomEntropyRegularization:
 
 
 class Agent(object):
-    def __init__(self, alpha=1e-4, gamma=0.99, n_actions=2, state_size=4):
+    def __init__(self, alpha=1e-4, gamma=0.99, n_actions=2, state_size=4, n=5, baseline=True, bootstrap=True):
         self.gamma = gamma
         self.lr = alpha
         self.G = 0
+        self.n = n
         self.state_size = state_size
         self.n_actions = n_actions
         self.state_memory = []
@@ -32,8 +32,8 @@ class Agent(object):
         self.model_actor = self._build_actor_model()
         self.model_critic = self._build_critic_model()
         self.action_space = [i for i in range(n_actions)]
-        self.baseline = True
-        self.bootstrap =  True
+        self.baseline = baseline
+        self.bootstrap = bootstrap
 
     def _build_actor_model(self): # Takes state as input, outputs probability legal actions
         model = Sequential()
@@ -78,7 +78,6 @@ class Agent(object):
         actions = np.squeeze(np.vstack(self.action_memory))
         #values = self.model_critic(states)[:, 0]
         values_2 = np.squeeze(self.model_critic.predict(states))
-        n = 5
         G = np.zeros_like(reward_memory)
 
         for t in range(len(reward_memory)):
@@ -88,9 +87,9 @@ class Agent(object):
                 G_sum += reward_memory[k-1] * discount
                 discount *= self.gamma
             G[t] = G_sum
-            n = min(n, len(reward_memory) - t)
+            n = min(self.n, len(reward_memory) - t)
             if self.bootstrap:
-                G[t] += (self.gamma ** n) * values_2[t + n-1] # Bootstrapping
+                G[t] += (self.gamma ** n) * values_2[t + n - 1] # Bootstrapping
         mean = np.mean(G)
         std = np.std(G) + 1e-9
         self.G = (G - mean) / std
@@ -101,22 +100,21 @@ class Agent(object):
         else:
             self.model_actor.train_on_batch(states, actions, sample_weight=self.G)
 
-
-
         self.model_critic.train_on_batch(states, self.G)
         self.state_memory = []
         self.action_memory = []
         self.reward_memory = []
 
 
-def test():
+def actor_critic(n_episodes, learning_rate, gamma, n, baseline, bootstrap):
     env = gym.make('CartPole-v1')
     state_size = env.observation_space.shape[0]
     action_size = env.action_space.n
-    agent = Agent(n_actions=action_size, state_size=state_size)
-    n_episodes = 500
-    score_history = []
-    average_score = []
+    agent = Agent(alpha=learning_rate, gamma=gamma, n_actions=action_size, state_size=state_size, n=n,
+                  baseline=baseline, bootstrap=bootstrap)
+    eval_timesteps = []
+    eval_returns = []
+    eval_avg_returns = []
     for i in range(n_episodes):
         done = False
         score = 0
@@ -129,15 +127,9 @@ def test():
             agent.store_transition(s, a, r, prob)
             s = s_next
             score += r
-        score_history.append(score)
         agent.update_policy()
-        print('episode ', i, ' score ', score, 'average_score ', np.mean(score_history[-100:]))
-        average_score.append(np.mean(score_history[-100:]))
-    plt.scatter(score_history, color='blue')
-    plt.plot(average_score, color='red')
-    plt.title("Reward progression ")
-    plt.xlabel("Episode")
-    plt.ylabel("Reward")
-    plt.show()
-test()
-
+        eval_timesteps.append(i)
+        eval_returns.append(score)
+        eval_avg_returns.append(np.mean(eval_returns[-100:]))
+        print('episode ', i, ' score ', score, 'average_score ', np.mean(eval_returns[-100:]))
+    return np.array(eval_returns), np.array(eval_timesteps), np.array(eval_avg_returns)
