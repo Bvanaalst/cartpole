@@ -17,7 +17,7 @@ class CustomEntropyRegularization:
 
 
 class Agent(object):
-    def __init__(self, alpha=1e-4, gamma=0.99, n_actions=2, state_size=4, n=5, baseline=True, bootstrap=True):
+    def __init__(self, alpha=1e-4, gamma=0.99, n_actions=2, state_size=4, n=5, weight=0.01, baseline=True, bootstrap=True):
         self.gamma = gamma
         self.lr = alpha
         self.G = 0
@@ -34,6 +34,7 @@ class Agent(object):
         self.action_space = [i for i in range(n_actions)]
         self.baseline = baseline
         self.bootstrap = bootstrap
+        self.weight = weight
 
     def _build_actor_model(self): # Takes state as input, outputs probability legal actions
         model = Sequential()
@@ -42,6 +43,7 @@ class Agent(object):
         model.add(Dense(self.n_actions, activation="softmax"))
 
         # Define the custom entropy regularization loss
+        #self.weight?
         entropy_loss = CustomEntropyRegularization(weight=0.01)  # Adjust the weight as needed
 
         # Compile the model with the combined loss
@@ -79,20 +81,31 @@ class Agent(object):
         #values = self.model_critic(states)[:, 0]
         values_2 = np.squeeze(self.model_critic.predict(states))
         G = np.zeros_like(reward_memory)
+        if not self.bootstrap:
+            for t in range(len(reward_memory)):
+                G_sum = 0
+                discount = 1
+                for k in range(t, len(reward_memory)):
+                    G_sum += reward_memory[k] * discount
+                    discount *= self.gamma
+                G[t] = G_sum
+            mean = np.mean(G)
+            std = np.std(G) + 1e-9
+            self.G = (G - mean) / std
 
-        for t in range(len(reward_memory)):
-            G_sum = 0
-            discount = 1
-            for k in range(t, len(reward_memory)):
-                G_sum += reward_memory[k-1] * discount
-                discount *= self.gamma
-            G[t] = G_sum
-            n = min(self.n, len(reward_memory) - t)
-            if self.bootstrap:
-                G[t] += (self.gamma ** n) * values_2[t + n - 1] # Bootstrapping
-        mean = np.mean(G)
-        std = np.std(G) + 1e-9
-        self.G = (G - mean) / std
+        if self.bootstrap:
+            for t in range(len(reward_memory)):
+                G_sum = 0
+                discount = 1
+                n = min(self.n, len(reward_memory) - t)
+                for k in range(t, t + n):
+                    G_sum += reward_memory[k] * discount
+                    discount *= self.gamma
+                G[t] = G_sum
+                G[t] += (self.gamma ** n) * values_2[t + n - 1]  # Bootstrapping
+            mean = np.mean(G)
+            std = np.std(G) + 1e-9
+            self.G = (G - mean) / std
 
         if self.baseline:
             advantages = self.G - values_2 # Baseline subtraction
@@ -106,12 +119,12 @@ class Agent(object):
         self.reward_memory = []
 
 
-def actor_critic(n_episodes, learning_rate, gamma, n, baseline, bootstrap):
+def actor_critic(n_episodes, learning_rate, gamma, n, weight, baseline, bootstrap):
     env = gym.make('CartPole-v1')
     state_size = env.observation_space.shape[0]
     action_size = env.action_space.n
     agent = Agent(alpha=learning_rate, gamma=gamma, n_actions=action_size, state_size=state_size, n=n,
-                  baseline=baseline, bootstrap=bootstrap)
+                  weight=weight, baseline=baseline, bootstrap=bootstrap)
     eval_timesteps = []
     eval_returns = []
     eval_avg_returns = []
@@ -120,7 +133,7 @@ def actor_critic(n_episodes, learning_rate, gamma, n, baseline, bootstrap):
         score = 0
         s = env.reset()
         s = s[0]
-        while not done:
+        while not done or score >= 500:
             a, prob = agent.choose_action(s)
             step_result = env.step(a)  # Execute action_t in emulator and observe next_state, reward and terminal state
             s_next, r, done, _ = step_result[:4]
